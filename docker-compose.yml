@@ -1,0 +1,65 @@
+version: '2.2'
+services:
+  es01:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    command:
+      - /bin/sh
+      - -c
+      - "./bin/elasticsearch-plugin list | grep -q analysis-kuromoji
+      || ./bin/elasticsearch-plugin install analysis-kuromoji;
+      ./bin/elasticsearch-plugin list | grep -q analysis-icu
+      || ./bin/elasticsearch-plugin install analysis-icu;
+      /usr/local/bin/docker-entrypoint.sh"
+    container_name: es01
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - http.cors.enabled=true
+      - http.cors.allow-origin='*'
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "KIBANA_PASSWORD=kibana"
+      - "ELASTIC_PASSWORD=elastic"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - ./elsdata:/usr/share/elasticsearch/data
+    ports:
+      - 9200:9200
+    networks:
+      - elastic
+
+  kib01:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: kib01
+    ports:
+      - 5601:5601
+    depends_on:
+      - es01
+    environment:
+      - "ELASTICSEARCH_HOSTS=http://es01:9200"
+      - "KIBANA_PASSWORD=kibana"
+      - "ELASTIC_PASSWORD=elastic"
+    networks:
+      - elastic
+
+#  lst01:
+#    image: docker.elastic.co/logstash/logstash:8.11.0
+#    container_name: lst01
+#    volumes:
+#      - ./lstconf:/usr/share/logstash/pipeline
+#      - ./lstinput:/DATA
+#    depends_on:
+#      - es01
+#    environment:
+#      ELASTIC_HOST: es01:9200
+#    networks:
+#      - elastic
+
+volumes:
+  data: {}
+
+networks:
+  elastic:
+    driver: bridge
